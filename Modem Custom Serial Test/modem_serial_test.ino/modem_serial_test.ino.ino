@@ -10,8 +10,8 @@
 #endif
 
 // defs
-#define SERIAL2_RX_PIN       16
-#define SERIAL2_TX_PIN       17
+#define Serial_RX_PIN       20
+#define Serial_TX_PIN       21
 
 #if POWER_MONITOR_MODE
 #define SDA_PIN              21
@@ -85,10 +85,8 @@ bool isValidDataPacket(String packet) {
 }
 
 void setup() {
-  // esp32 usb serial
-  Serial.begin(115200);
   // uart connection to wireless tracker (receive data from sensorcontrol ESP32)
-  Serial2.begin(9600, SERIAL_8N1, SERIAL2_RX_PIN, SERIAL2_TX_PIN);
+  Serial.begin(9600, SERIAL_8N1, Serial_RX_PIN, Serial_TX_PIN);
 
 #if POWER_MONITOR_MODE
   // Initialize I2C for power monitoring
@@ -197,44 +195,9 @@ void loop() {
     activeReadingTaken = false;     // Allow next active reading for next transmission cycle
   }
 #endif
-
-  // Check for commands from USB Serial (Arduino Serial Monitor)
-  if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');
-    command.trim();
-    command.toLowerCase();
-    
-    if (command == "print" || command == "show" || command == "data") {
-      Serial.println("\n=== STORED DATA ===");
-      printStoredData();
-      Serial.println("=== END OF DATA ===\n");
-#if POWER_MONITOR_MODE
-    } else if (command == "printpower" || command == "showpower" || command == "power") {
-      Serial.println("\n=== POWER DATA ===");
-      printPowerData();
-      Serial.println("=== END OF POWER DATA ===\n");
-#endif
-    } else if (command == "clear" || command == "delete") {
-      clearStoredData();
-#if POWER_MONITOR_MODE
-    } else if (command == "clearpower" || command == "deletepower") {
-      clearPowerData();
-#endif
-    } else if (command == "toggle" || command == "quiet" || command == "verbose") {
-      togglePrintMode();
-    } else if (command == "status") {
-      printStatus();
-    } else if (command == "wipe" || command == "format") {
-      wipeAllFiles();
-    } else if (command == "help" || command == "?") {
-      printHelp();
-    } else if (command.length() > 0) {
-      Serial.println("Unknown command. Type 'help' for available commands.");
-    }
-  }
   
-  // Check if data is available from Serial2 (sensorcontrol ESP32)
-  if (Serial2.available()) {
+  // Check if data is available from Serial (sensorcontrol ESP32)
+  if (Serial.available()) {
 #if POWER_MONITOR_MODE
     // Take immediate power reading as soon as data starts arriving (capture active phase)
     // Only take one active reading per transmission cycle
@@ -271,7 +234,7 @@ void loop() {
     }
 #endif
 
-    String receivedPacket = Serial2.readStringUntil('\n');
+    String receivedPacket = Serial.readStringUntil('\n');
     receivedPacket.trim(); // Remove any trailing whitespace/newlines
     
     // Filter out invalid packets (boot messages, empty lines, etc.)
@@ -313,6 +276,30 @@ void loop() {
           Serial.println("Logging disabled - file is full");
         }
       }
+    } else if (receivedPacket == "print" || receivedPacket == "show" || receivedPacket == "data") {
+      Serial.println("\n=== STORED DATA ===");
+      printStoredData();
+      Serial.println("=== END OF DATA ===\n");
+#if POWER_MONITOR_MODE
+    } else if (receivedPacket == "printpower" || receivedPacket == "showpower" || receivedPacket == "power") {
+      Serial.println("\n=== POWER DATA ===");
+      printPowerData();
+      Serial.println("=== END OF POWER DATA ===\n");
+#endif
+    } else if (receivedPacket == "clear" || receivedPacket == "delete") {
+      clearStoredData();
+#if POWER_MONITOR_MODE
+    } else if (receivedPacket == "clearpower" || receivedPacket == "deletepower") {
+      clearPowerData();
+#endif
+    } else if (receivedPacket == "toggle" || receivedPacket == "quiet" || receivedPacket == "verbose") {
+      togglePrintMode();
+    } else if (receivedPacket == "status") {
+      printStatus();
+    } else if (receivedPacket == "wipe" || receivedPacket == "format") {
+      wipeAllFiles();
+    } else if (receivedPacket == "help" || receivedPacket == "?") {
+      printHelp();
     } else {
       // Optionally log filtered packets for debugging
       if (printReceivedPackets && receivedPacket.length() > 0) {
